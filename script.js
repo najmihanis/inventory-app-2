@@ -158,6 +158,10 @@ let prepFilter = 'all';
 let updatesFilter = { location: 'all', user: 'all' };
 let selectedItemId = null;
 let idCounter = 100;
+let countCategoryFilter = 'All';
+let numpadItemId = null;
+let numpadLocId = null;
+let numpadValue = '';
 
 // ============================================================
 // HELPERS
@@ -368,40 +372,35 @@ function renderLocationPicker() {
   </div>`;
 }
 
-let countSearchQuery = '';
-
 function selectLocation(id) {
   currentLocationId = id;
-  countSearchQuery = '';
+  countCategoryFilter = 'All';
   renderMain();
 }
 
 function renderLocationCount() {
   const loc = LOCATIONS.find(l => l.id === currentLocationId);
   const allLocItems = ITEMS.filter(i => currentLocationId in i.locations);
+  const categories = ['All', ...new Set(allLocItems.map(i => i.category))];
   const locItems = allLocItems.filter(i =>
-    countSearchQuery === '' || i.name.toLowerCase().includes(countSearchQuery.toLowerCase())
+    countCategoryFilter === 'All' || i.category === countCategoryFilter
   );
 
   return `
   <div class="count-screen-wrap">
     <div class="count-top-bar">
-      <button class="back-btn" onclick="currentLocationId=null;countSearchQuery='';renderMain()">‹</button>
+      <button class="back-btn" onclick="currentLocationId=null;countCategoryFilter='All';renderMain()">‹</button>
       <div class="count-top-info">
         <div class="screen-title">${locTypeIcon(loc.type)} ${loc.name}</div>
-        <div class="screen-sub">${allLocItems.length} items · tap to update</div>
+        <div class="screen-sub">${allLocItems.length} items · tap qty to edit</div>
       </div>
     </div>
 
-    <div class="count-search-wrap">
-      <input
-        class="search-input"
-        id="count-search"
-        type="text"
-        placeholder="🔍  Search items in this location..."
-        value="${countSearchQuery}"
-        oninput="filterCountItems(this.value)"
-      >
+    <div class="cat-scroll" style="margin-bottom:8px">
+      ${categories.map(cat => `
+        <button class="cat-chip ${countCategoryFilter === cat ? 'cat-active' : ''}"
+          onclick="filterCountByCategory('${cat}')">${cat}</button>
+      `).join('')}
     </div>
 
     <div class="count-results-bar" id="count-results-bar">
@@ -420,12 +419,11 @@ function renderLocationCount() {
 
 function renderCountCards(locItems) {
   if (locItems.length === 0) {
-    return `<div class="empty-state">No items match your search</div>`;
+    return `<div class="empty-state">No items in this category</div>`;
   }
   return locItems.map(item => {
     const qty = item.locations[currentLocationId];
     const st = statusLabel(item);
-    const sliderMax = Math.max(item.par * 2, qty + 10, 20);
     return `
     <div class="count-card" id="count-card-${item.id}">
       <div class="count-item-header">
@@ -438,38 +436,19 @@ function renderCountCards(locItems) {
 
       <div class="count-controls">
         <button class="qty-btn minus" onclick="adjustQty('${item.id}','${currentLocationId}',-1)">−</button>
-        <input
-          class="qty-type-input"
-          id="qty-${item.id}-${currentLocationId}"
-          type="number"
-          min="0"
-          value="${qty}"
-          onchange="commitTypedQty('${item.id}','${currentLocationId}',this)"
-          oninput="syncSlider('${item.id}','${currentLocationId}',this.value,${sliderMax})"
-        >
+        <button class="qty-display" id="qty-display-${item.id}-${currentLocationId}"
+          onclick="openNumpad('${item.id}','${currentLocationId}',${qty})">
+          <span class="qty-display-num">${qty}</span>
+          <span class="qty-display-unit">${item.unit}</span>
+        </button>
         <button class="qty-btn plus" onclick="adjustQty('${item.id}','${currentLocationId}',1)">+</button>
       </div>
 
-      <div class="slider-wrap">
-        <span class="slider-label">0</span>
-        <input
-          class="qty-slider"
-          id="slider-${item.id}-${currentLocationId}"
-          type="range"
-          min="0"
-          max="${sliderMax}"
-          value="${qty}"
-          oninput="syncFromSlider('${item.id}','${currentLocationId}',this.value)"
-          onchange="commitSliderQty('${item.id}','${currentLocationId}',this.value)"
-        >
-        <span class="slider-label">${sliderMax}</span>
-      </div>
-
-      <div class="quick-chips">
-        <button class="chip" onclick="setQty('${item.id}','${currentLocationId}',0)">0</button>
-        <button class="chip" onclick="setQty('${item.id}','${currentLocationId}',Math.ceil(${item.par}*0.25))">Low</button>
-        <button class="chip" onclick="setQty('${item.id}','${currentLocationId}',Math.ceil(${item.par}*0.5))">Half</button>
-        <button class="chip" onclick="setQty('${item.id}','${currentLocationId}',${item.par})">Full</button>
+      <div class="quick-increments">
+        <button class="inc-btn dec-lg" onclick="adjustQty('${item.id}','${currentLocationId}',-10)">−10</button>
+        <button class="inc-btn dec-sm" onclick="adjustQty('${item.id}','${currentLocationId}',-5)">−5</button>
+        <button class="inc-btn inc-sm" onclick="adjustQty('${item.id}','${currentLocationId}',5)">+5</button>
+        <button class="inc-btn inc-lg" onclick="adjustQty('${item.id}','${currentLocationId}',10)">+10</button>
       </div>
 
       <div class="count-updated" id="updated-${item.id}">Last updated: ${formatDateTime(item.lastUpdatedAt)} by ${item.lastUpdatedBy}</div>
@@ -477,58 +456,73 @@ function renderCountCards(locItems) {
   }).join('');
 }
 
-function filterCountItems(query) {
-  countSearchQuery = query;
+function filterCountByCategory(cat) {
+  countCategoryFilter = cat;
   const allLocItems = ITEMS.filter(i => currentLocationId in i.locations);
-  const filtered = allLocItems.filter(i =>
-    query === '' || i.name.toLowerCase().includes(query.toLowerCase())
-  );
+  const filtered = allLocItems.filter(i => cat === 'All' || i.category === cat);
   const list = document.getElementById('count-list');
   const bar = document.getElementById('count-results-bar');
   if (list) list.innerHTML = renderCountCards(filtered);
   if (bar) bar.textContent = `${filtered.length} of ${allLocItems.length} items`;
+  document.querySelectorAll('.cat-scroll .cat-chip').forEach(chip => {
+    chip.classList.toggle('cat-active', chip.textContent.trim() === cat);
+  });
 }
 
-// Sync the number input → slider (while typing)
-function syncSlider(itemId, locId, val, sliderMax) {
-  const slider = document.getElementById(`slider-${itemId}-${locId}`);
-  if (slider) slider.value = Math.min(Math.max(0, parseInt(val) || 0), sliderMax);
-}
-
-// Sync the slider → number input (while dragging, live preview only)
-function syncFromSlider(itemId, locId, val) {
-  const input = document.getElementById(`qty-${itemId}-${locId}`);
-  if (input) input.value = val;
-}
-
-// Commit when slider drag ends
-function commitSliderQty(itemId, locId, val) {
-  const newQty = Math.max(0, parseInt(val) || 0);
+function openNumpad(itemId, locId, currentQty) {
+  numpadItemId = itemId;
+  numpadLocId = locId;
+  numpadValue = String(currentQty);
   const item = ITEMS.find(i => i.id === itemId);
-  const oldQty = item.locations[locId] || 0;
-  item.locations[locId] = newQty;
-  const input = document.getElementById(`qty-${itemId}-${locId}`);
-  if (input) input.value = newQty;
-  if (oldQty !== newQty) pushUpdate(item.name, locName(locId), oldQty, newQty, item.unit);
+  const modal = document.getElementById('modal-overlay');
+  modal.innerHTML = `
+  <div class="modal-sheet numpad-sheet">
+    <div class="modal-handle"></div>
+    <div class="numpad-header">
+      <div class="numpad-item-name">${item.name}</div>
+      <div class="numpad-display" id="numpad-display">${numpadValue}</div>
+      <div class="numpad-unit-label">${item.unit}</div>
+    </div>
+    <div class="numpad-grid">
+      ${[1,2,3,4,5,6,7,8,9,'⌫',0,'✓'].map(k => `
+        <button class="numpad-key${k === '✓' ? ' numpad-confirm' : k === '⌫' ? ' numpad-back' : ''}"
+          onclick="numpadPress('${k}')">${k}</button>
+      `).join('')}
+    </div>
+  </div>`;
+  modal.classList.add('active');
+}
+
+function numpadPress(key) {
+  if (key === '⌫') {
+    numpadValue = numpadValue.length > 1 ? numpadValue.slice(0, -1) : '0';
+  } else if (key === '✓') {
+    commitNumpad();
+    return;
+  } else {
+    if (numpadValue === '0') numpadValue = String(key);
+    else numpadValue = (numpadValue + key).slice(0, 4);
+  }
+  const display = document.getElementById('numpad-display');
+  if (display) display.textContent = numpadValue;
+}
+
+function commitNumpad() {
+  const newQty = Math.max(0, parseInt(numpadValue) || 0);
+  const item = ITEMS.find(i => i.id === numpadItemId);
+  const oldQty = item.locations[numpadLocId] || 0;
+  item.locations[numpadLocId] = newQty;
+  if (oldQty !== newQty) pushUpdate(item.name, locName(numpadLocId), oldQty, newQty, item.unit);
   item.lastUpdatedBy = 'Najmi';
   item.lastUpdatedAt = new Date().toISOString();
+  const displayBtn = document.getElementById(`qty-display-${numpadItemId}-${numpadLocId}`);
+  if (displayBtn) {
+    displayBtn.innerHTML = `<span class="qty-display-num">${newQty}</span><span class="qty-display-unit">${item.unit}</span>`;
+    displayBtn.setAttribute('onclick', `openNumpad('${numpadItemId}','${numpadLocId}',${newQty})`);
+  }
   refreshCountCardMeta(item);
-}
-
-// Commit when typed input loses focus or Enter pressed
-function commitTypedQty(itemId, locId, inputEl) {
-  const newQty = Math.max(0, parseInt(inputEl.value) || 0);
-  inputEl.value = newQty;
-  const item = ITEMS.find(i => i.id === itemId);
-  const oldQty = item.locations[locId] || 0;
-  item.locations[locId] = newQty;
-  const sliderMax = Math.max(item.par * 2, newQty + 10, 20);
-  const slider = document.getElementById(`slider-${itemId}-${locId}`);
-  if (slider) { slider.max = sliderMax; slider.value = newQty; }
-  if (oldQty !== newQty) pushUpdate(item.name, locName(locId), oldQty, newQty, item.unit);
-  item.lastUpdatedBy = 'Najmi';
-  item.lastUpdatedAt = new Date().toISOString();
-  refreshCountCardMeta(item);
+  numpadItemId = null; numpadLocId = null; numpadValue = '';
+  closeModal();
 }
 
 function adjustQty(itemId, locId, delta) {
@@ -536,27 +530,11 @@ function adjustQty(itemId, locId, delta) {
   const oldQty = item.locations[locId] || 0;
   const newQty = Math.max(0, oldQty + delta);
   item.locations[locId] = newQty;
-  const input = document.getElementById(`qty-${itemId}-${locId}`);
-  if (input) input.value = newQty;
-  const sliderMax = Math.max(item.par * 2, newQty + 10, 20);
-  const slider = document.getElementById(`slider-${itemId}-${locId}`);
-  if (slider) { slider.max = sliderMax; slider.value = newQty; }
-  if (oldQty !== newQty) pushUpdate(item.name, locName(locId), oldQty, newQty, item.unit);
-  item.lastUpdatedBy = 'Najmi';
-  item.lastUpdatedAt = new Date().toISOString();
-  refreshCountCardMeta(item);
-}
-
-function setQty(itemId, locId, newQty) {
-  const item = ITEMS.find(i => i.id === itemId);
-  const oldQty = item.locations[locId] || 0;
-  newQty = Math.max(0, Math.round(newQty));
-  item.locations[locId] = newQty;
-  const input = document.getElementById(`qty-${itemId}-${locId}`);
-  if (input) input.value = newQty;
-  const sliderMax = Math.max(item.par * 2, newQty + 10, 20);
-  const slider = document.getElementById(`slider-${itemId}-${locId}`);
-  if (slider) { slider.max = sliderMax; slider.value = newQty; }
+  const displayBtn = document.getElementById(`qty-display-${itemId}-${locId}`);
+  if (displayBtn) {
+    displayBtn.innerHTML = `<span class="qty-display-num">${newQty}</span><span class="qty-display-unit">${item.unit}</span>`;
+    displayBtn.setAttribute('onclick', `openNumpad('${itemId}','${locId}',${newQty})`);
+  }
   if (oldQty !== newQty) pushUpdate(item.name, locName(locId), oldQty, newQty, item.unit);
   item.lastUpdatedBy = 'Najmi';
   item.lastUpdatedAt = new Date().toISOString();
@@ -1232,6 +1210,7 @@ function bindEvents() {
 
 function startLocationCount() {
   currentLocationId = null;
+  countCategoryFilter = 'All';
   navigate('count');
 }
 

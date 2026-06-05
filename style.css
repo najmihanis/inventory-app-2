@@ -428,69 +428,90 @@ html, body {
 .qty-btn.plus  { color: var(--green); border-color: #a8d9be; }
 .qty-btn.plus:hover { background: var(--green-light); }
 
-/* Editable quantity number input */
-.qty-type-input {
-  font-size: 26px;
-  font-weight: 800;
-  width: 72px;
-  text-align: center;
+/* Tappable quantity display */
+.qty-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 90px;
+  min-height: 58px;
+  background: var(--cream);
   border: 2px solid var(--border);
   border-radius: var(--radius-sm);
-  padding: 6px 4px;
-  color: var(--text);
-  background: var(--cream);
-  outline: none;
-  -moz-appearance: textfield;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  gap: 2px;
 }
-.qty-type-input::-webkit-outer-spin-button,
-.qty-type-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-.qty-type-input:focus { border-color: var(--green); background: #fff; }
+.qty-display:hover { border-color: var(--green); background: #fff; }
+.qty-display:active { background: var(--green-light); }
+.qty-display-num { font-size: 26px; font-weight: 800; color: var(--text); line-height: 1; }
+.qty-display-unit { font-size: 10px; color: var(--text-soft); font-weight: 600; }
 
-/* Slider */
-.slider-wrap {
+/* Quick increment buttons */
+.quick-increments {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  gap: 6px;
   margin-bottom: 10px;
 }
-.slider-label {
-  font-size: 11px;
-  color: var(--text-soft);
-  font-weight: 600;
-  min-width: 20px;
-  text-align: center;
-}
-.qty-slider {
+.inc-btn {
   flex: 1;
-  -webkit-appearance: none;
-  appearance: none;
-  height: 6px;
-  border-radius: 3px;
+  padding: 7px 4px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.12s;
+}
+.dec-lg { background: var(--red-light);   color: var(--red);   border-color: #f9b4b4; }
+.dec-sm { background: #fff3f3;            color: var(--red);   border-color: #f9b4b4; }
+.inc-sm { background: #f0faf4;            color: var(--green); border-color: #a8d9be; }
+.inc-lg { background: var(--green-light); color: var(--green); border-color: #a8d9be; }
+.inc-btn:hover { opacity: 0.75; }
+
+/* Numpad */
+.numpad-sheet { padding-bottom: 32px; }
+.numpad-header {
+  text-align: center;
+  padding: 4px 0 20px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+.numpad-item-name { font-size: 14px; font-weight: 700; color: var(--text-mid); margin-bottom: 10px; }
+.numpad-display {
+  font-size: 52px;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1;
+}
+.numpad-unit-label { font-size: 13px; color: var(--text-soft); margin-top: 4px; }
+.numpad-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  padding: 0 8px;
+}
+.numpad-key {
   background: var(--cream-dark);
-  outline: none;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 18px 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
   cursor: pointer;
-  accent-color: var(--green);
+  transition: background 0.1s;
 }
-.qty-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
+.numpad-key:active { background: var(--border); }
+.numpad-back { font-size: 18px; color: var(--text-mid); }
+.numpad-confirm {
   background: var(--green);
-  cursor: pointer;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
-  border: 2px solid #fff;
+  color: #fff;
+  border-color: var(--green);
+  font-size: 20px;
 }
-.qty-slider::-moz-range-thumb {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: var(--green);
-  cursor: pointer;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
-  border: 2px solid #fff;
-}
+.numpad-confirm:active { background: #235e3c; }
 
 /* Legacy qty-input kept for modal use */
 .qty-input {
